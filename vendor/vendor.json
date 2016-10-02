@@ -1,6 +1,13 @@
 {
 	"comment": "",
 	"ignore": "test",
-	"package": [],
+	"package": [
+		{
+			"checksumSHA1": "Jc1S7ykxLE5iBIxPSCpAVBlbxSU=",
+			"path": "github.com/sweeney/121bot",
+			"revision": "15fa4326d7d4671458f99eb350d3e93c34ee4392",
+			"revisionTime": "2016-10-02T22:03:38Z"
+		}
+	],
 	"rootPath": "github.com/sweeney/121bot"
 }

@@ -16,7 +16,7 @@ func main() {
 
 	http.HandleFunc("/", rootHandler)
 	//http.HandleFunc("/1:1", OneToOneHandler)
-	http.HandleFunc("/oauth", oauthHandler)
+	http.HandleFunc("/oauth/", oauthHandler)
 
 	http.ListenAndServe(":"+port, nil)
 
@@ -24,7 +24,14 @@ func main() {
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 
-	fmt.Fprintln(w, "121bot: <a href=\"https://slack.com/oauth/authorize?scope=commands+users%3Aread\">Add to slack</a>")
+	clientID := os.Getenv("SLACK_CLIENT_ID")
+
+	if clientID == "" {
+		http.Error(w, "Missing clientID in config", http.StatusInternalServerError)
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, "121bot: <a href=\"https://slack.com/oauth/authorize?scope=commands+users:read&client_id=%s\">Add to slack</a>\n", clientID)
 	return
 
 }

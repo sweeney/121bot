@@ -115,6 +115,7 @@ func oneToOneHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error: %s", jsonErr.Error()), http.StatusInternalServerError)
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprint(w, string(j))
 
 	return

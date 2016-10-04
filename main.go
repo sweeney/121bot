@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/garyburd/redigo/redis"
@@ -8,6 +9,11 @@ import (
 	"net/http"
 	"os"
 )
+
+type SlackSlashResponse struct {
+	ResponseType string `json:"response_type"`
+	Text         string `json:"text"`
+}
 
 func main() {
 
@@ -17,7 +23,7 @@ func main() {
 	}
 
 	http.HandleFunc("/", rootHandler)
-	//http.HandleFunc("/1:1", OneToOneHandler)
+	http.HandleFunc("/1:1", oneToOneHandler)
 	http.HandleFunc("/oauth/", oauthHandler)
 
 	http.ListenAndServe(":"+port, nil)
@@ -70,6 +76,113 @@ func oauthHandler(w http.ResponseWriter, r *http.Request) {
 
 	} else {
 		http.Error(w, "Missing code", http.StatusBadRequest)
+	}
+
+}
+
+func oneToOneHandler(w http.ResponseWriter, r *http.Request) {
+	/*
+	  token=xyzxyzxyz&team_id=xyzxyzxyz&team_domain=ravelin&channel_id=xyzxyzxyz&channel_name=zztest&user_id=xyzxyzxyz&user_name=sweeney&command=%2F1%3A1&text=now&response_url=xyzxyzxyz
+	*/
+
+	teamID := r.FormValue("team_id")
+	self := r.FormValue("user_name")
+
+	if teamID == "" {
+		http.Error(w, "Missing team_id", http.StatusBadRequest)
+		return
+	}
+
+	friend, isOffline, err := findAFriend(teamID, self)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	var resp SlackSlashResponse
+	resp.ResponseType = "in_channel"
+
+	if isOffline {
+		resp.Text = fmt.Sprintf("There's no one around right now, but why not have a 1:1 with @%s when they're back?", friend)
+	} else {
+		resp.Text = fmt.Sprintf("Why not have a 1:1 with @%s?", friend)
+	}
+
+	j, jsonErr := json.Marshal(resp)
+
+	if jsonErr != nil {
+		http.Error(w, fmt.Sprintf("Error: %s", jsonErr.Error()), http.StatusInternalServerError)
+	}
+
+	fmt.Fprint(w, string(j))
+
+	return
+}
+
+func findAFriend(teamID string, self string) (string, bool, error) {
+
+	token, err := getTeamToken(teamID)
+	if err != nil {
+		return "", false, err
+	}
+
+	allUsers, userErr := slack.New(token).GetUsers()
+	if userErr != nil {
+		return "", false, userErr
+	}
+
+	validUsersOnline := make(map[string]string)
+	validUsersAll := make(map[string]string)
+
+	for _, user := range allUsers {
+		if validUser(user, self, false) {
+			validUsersAll[user.ID] = user.Name
+		}
+		if validUser(user, self, true) {
+			validUsersOnline[user.ID] = user.Name
+		}
+	}
+
+	// Try and see if there's anyone around at the moment
+	for _, name := range validUsersOnline {
+		return name, false, nil
+	}
+
+	// Fall back on all valid users even if they're offline
+	for _, name := range validUsersAll {
+		return name, true, nil
+	}
+
+	return "", false, errors.New("There's no one in your team to talk to!")
+
+}
+
+func validUser(u slack.User, self string, checkActive bool) bool {
+
+	if checkActive && u.Presence != "active" {
+		return false
+	}
+
+	if u.IsBot || u.IsRestricted || u.IsUltraRestricted || u.Deleted || u.Name == self || u.Name == "slackbot" {
+		return false
+	}
+
+	return true
+
+}
+
+func getTeamToken(teamID string) (string, error) {
+
+	config, err := getTeamConfig(teamID)
+	if err != nil {
+		return "", err
+	}
+
+	if token, ok := config["token"]; ok {
+		return token, nil
+	} else {
+		return "", errors.New("Couldn't find token for team!")
 	}
 
 }

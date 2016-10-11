@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"github.com/nlopes/slack"
 	"net/http"
 	"os"
+	"text/template"
 )
 
 type SlackSlashResponse struct {
@@ -38,8 +40,29 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing clientID in config", http.StatusInternalServerError)
 	}
 
+	t, err := template.ParseFiles("root.html")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Templating error: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	type substitutions struct {
+		CLIENT_ID string
+	}
+
+	subs := substitutions{
+		CLIENT_ID: clientID,
+	}
+
+	buf := new(bytes.Buffer)
+	templateErr := t.Execute(buf, subs)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Templating error: %s", templateErr.Error()), http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprintf(w, "121bot: <a href=\"https://slack.com/oauth/authorize?scope=commands+users:read&client_id=%s\">Add to slack</a>\n", clientID)
+	fmt.Fprintln(w, buf.String())
 	return
 
 }
@@ -67,7 +90,7 @@ func oauthHandler(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, fmt.Sprintf("Error: %s", storageError.Error()), http.StatusInternalServerError)
 			}
 
-			fmt.Fprintf(w, "Great success! Stored all creds for %s.\n", authResponse.TeamName)
+			fmt.Fprintf(w, "Great success! Stored all creds for %s.\nGo forth and 1:1!", authResponse.TeamName)
 			return
 
 		} else {

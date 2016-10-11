@@ -32,6 +32,8 @@ func main() {
 
 }
 
+// Serve up a basic html page with the correct client ID to power
+// the "Add to Slack"  button
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 	clientID := os.Getenv("SLACK_CLIENT_ID")
@@ -67,7 +69,9 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// oauthHandler manages the OAuth 2.0 handshake and exchanges a code for an access token
+// Manages the OAuth 2.0 handshake and exchanges a code for an access token
+// Saves resulting token in Redis
+// Congratulates user
 func oauthHandler(w http.ResponseWriter, r *http.Request) {
 
 	clientID := os.Getenv("SLACK_CLIENT_ID")
@@ -103,6 +107,8 @@ func oauthHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// Callback handler from Slack for slash commands
+// Returns either a text error or a json success response
 func oneToOneHandler(w http.ResponseWriter, r *http.Request) {
 	/*
 	  token=xyzxyzxyz&team_id=xyzxyzxyz&team_domain=ravelin&channel_id=xyzxyzxyz&channel_name=zztest&user_id=xyzxyzxyz&user_name=sweeney&command=%2F1%3A1&text=now&response_url=xyzxyzxyz
@@ -156,6 +162,9 @@ func findAFriend(teamID string, self string) (string, bool, error) {
 		return "", false, userErr
 	}
 
+	// Using map randomisation
+	// Not so good for small sets
+	// Probably needs something a bit more thorough
 	validUsersOnline := make(map[string]string)
 	validUsersAll := make(map[string]string)
 
@@ -168,6 +177,7 @@ func findAFriend(teamID string, self string) (string, bool, error) {
 		}
 	}
 
+	// Pop the first name on the list
 	// Try and see if there's anyone around at the moment
 	for _, name := range validUsersOnline {
 		return name, false, nil
@@ -182,6 +192,7 @@ func findAFriend(teamID string, self string) (string, bool, error) {
 
 }
 
+// User needs to be a human, not yourself, and a fully fledged team member
 func validUser(u slack.User, self string, checkActive bool) bool {
 
 	if checkActive && u.Presence != "active" {
@@ -196,21 +207,9 @@ func validUser(u slack.User, self string, checkActive bool) bool {
 
 }
 
-func getTeamToken(teamID string) (string, error) {
-
-	config, err := getTeamConfig(teamID)
-	if err != nil {
-		return "", err
-	}
-
-	if token, ok := config["token"]; ok {
-		return token, nil
-	} else {
-		return "", errors.New("Couldn't find token for team!")
-	}
-
-}
-
+// Redigo lets you funnel maps into hashes in redis
+// So let's make the team config a map, with some
+// safety checks around the edges
 func makeConfig(response *slack.OAuthResponse) (map[string]string, error) {
 	config := make(map[string]string)
 
@@ -237,6 +236,23 @@ func makeConfig(response *slack.OAuthResponse) (map[string]string, error) {
 	return config, nil
 }
 
+// Pull team slack token from Redis
+func getTeamToken(teamID string) (string, error) {
+
+	config, err := getTeamConfig(teamID)
+	if err != nil {
+		return "", err
+	}
+
+	if token, ok := config["token"]; ok {
+		return token, nil
+	} else {
+		return "", errors.New("Couldn't find token for team!")
+	}
+
+}
+
+// Pull team slack config from Redis
 func getTeamConfig(teamID string) (map[string]string, error) {
 
 	redisURL := os.Getenv("REDIS_URL")
@@ -253,6 +269,7 @@ func getTeamConfig(teamID string) (map[string]string, error) {
 	return redis.StringMap(c.Do("HGETALL", "team:"+teamID))
 }
 
+// Push config to redis
 func storeTeamConfig(config map[string]string, teamID string) error {
 
 	redisURL := os.Getenv("REDIS_URL")

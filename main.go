@@ -28,6 +28,9 @@ func main() {
 	http.HandleFunc("/1:1", oneToOneHandler)
 	http.HandleFunc("/oauth/", oauthHandler)
 
+	http.HandleFunc("/privacy/", privacyHandler)
+	http.HandleFunc("/support/", supportHandler)
+
 	http.ListenAndServe(":"+port, nil)
 
 }
@@ -147,6 +150,18 @@ func oneToOneHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprint(w, string(j))
 
+	return
+}
+
+// A few words about privacy
+func privacyHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "We're very nice - we don't store or remember anything about you or your team beyond your name and the credentials Slack gives us to suggest you 1:1s")
+	return
+}
+
+// Very detailed support logs
+func supportHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "Just type /1:1 and be matched up with one of your colleagues")
 	return
 }
 

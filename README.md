@@ -1,6 +1,6 @@
 # 1:1 bot
 
-- Adds the slash command /1:1 to your Slack team
+- Adds the slash command `/1:1` to your Slack team
 - Suggests a random team member for you to have a 1:1 with
 
 ## Usage

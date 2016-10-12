@@ -133,9 +133,9 @@ func oneToOneHandler(w http.ResponseWriter, r *http.Request) {
 	resp.ResponseType = "in_channel"
 
 	if isOffline {
-		resp.Text = fmt.Sprintf("There's no one around right now, but why not have a 1:1 with @%s when they're back?", friend)
+		resp.Text = fmt.Sprintf("There's no one around right now, but why not have a 1:1 with <@%s> when they're back?", friend)
 	} else {
-		resp.Text = fmt.Sprintf("Why not have a 1:1 with @%s?", friend)
+		resp.Text = fmt.Sprintf("Why not have a 1:1 with <@%s>?", friend)
 	}
 
 	j, jsonErr := json.Marshal(resp)
